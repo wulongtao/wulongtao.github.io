@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+
+
+<html theme="dark" showBanner="true" hasBanner="desktop" > 
+<link href="/fontawesome/css/fontawesome.css" rel="stylesheet">
+<link href="/fontawesome/css/brands.css" rel="stylesheet">
+<link href="/fontawesome/css/solid.css" rel="stylesheet">
+<script src="/js/color.global.min.js" ></script>
+<script src="/js/load-settings.js" ></script>
+<head>
+  <meta charset="utf-8">
+  
+  
+  <title>归档 | 小黑屋</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+  <meta name="description" content="本文主要内容是对于部分源码的理解还有在使用Nacos时遇到的一些问题汇总。">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Nacos源码阅读与实战">
+<meta property="og:url" content="https://wulongtao.github.io/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/index.html">
+<meta property="og:site_name" content="小黑屋">
+<meta property="og:description" content="本文主要内容是对于部分源码的理解还有在使用Nacos时遇到的一些问题汇总。">
+<meta property="og:locale" content="zh_CN">
+<meta property="og:image" content="https://wulongtao.github.io/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/cover.png">
+<meta property="article:published_time" content="2023-07-18T22:23:59.000Z">
+<meta property="article:modified_time" content="2023-07-18T22:23:59.000Z">
+<meta property="article:author" content="xxiaohei">
+<meta property="article:tag" content="Nacos">
+<meta property="article:tag" content="SpringCloud">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:image" content="https://wulongtao.github.io/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/cover.png">
+  
+    <link rel="alternate" href="/atom.xml" title="小黑屋" type="application/atom+xml">
+  
+  
+    <link rel="shortcut icon" href="/assets/favicon.ico">
+  
+  
+  
+<link rel="stylesheet" href="/css/style.css">
+
+  
+  <!--自定义看板娘-->
+  <script src="https://cdn.jsdelivr.net/npm/jquery/dist/jquery.min.js"></script>
+  <script src="/live2d-widget/autoload.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome/css/font-awesome.min.css"/>
+<meta name="generator" content="Hexo 6.3.0"></head>
+
+<body>
+  
+     
+<div class="widget color-picker">
+  <h3 class="widget-title">Theme Preview</h3>
+  <div id="banner-toggle-bar">
+    <label for="vehicle1">Show Banner</label><br>
+    <input type="checkbox" id="banner-checkbox" name="banner-checkbox" value="show">
+  </div>
+
+  <div id="preset-list">
+    
+      <div class="preset-btn" style="background-color: #f486aa;" data-hue="0"></div>
+    
+      <div class="preset-btn" style="background-color: #fa8978;" data-hue="30"></div>
+    
+      <div class="preset-btn" style="background-color: #ee9748;" data-hue="60"></div>
+    
+      <div class="preset-btn" style="background-color: #00cab1;" data-hue="180"></div>
+    
+      <div class="preset-btn" style="background-color: #4ab8fd;" data-hue="240"></div>
+    
+      <div class="preset-btn" style="background-color: #8ca8ff;" data-hue="270"></div>
+    
+      <div class="preset-btn" style="background-color: #bc98f9;" data-hue="300"></div>
+    
+      <div class="preset-btn" style="background-color: #df8cd8;" data-hue="330"></div>
+    
+      <div class="preset-btn" style="background-color: #ec88c2;" data-hue="345"></div>
+     
+  </div>
+  <input type="range" min="0" max="360" value="85" class="slider" id="colorSlider" step="5" style="width: 100%;">
+  <p>Hue: <span id="hueValue"></span></p>
+</div>
+
+<script>
+  let slider = document.getElementById("colorSlider");
+  let output = document.getElementById("hueValue");
+  let presetList = document.getElementById("preset-list");
+  let r = document.querySelector(':root');
+  output.innerHTML = slider.value; // Display the default slider value
+
+  function getColorNode(l, c, h) {
+    return new Color("oklch", [l, c, h]).to("srgb").toString({format: "hex"});
+  }
+  function setHue(hue) {
+    localStorage.setItem('hue', hue);
+    output.innerHTML = hue;
+    slider.value = hue;
+    let colorType = {
+        'V': 1,
+        'M': 0.5,
+        'G': 0.25
+    }
+    for (let color of colors.default) {
+        for (let [name, mul] of Object.entries(colorType)) {
+          r.style.setProperty(`--${name}${color.name}`, getColorNode(color.l, color.c * mul, hue));
+        }
+    }
+
+    for (let [theme, list] of Object.entries(colors)) {
+      if (theme == 'default')
+        continue;
+      for (let color of list) {
+        r.style.setProperty(`--${theme}-${color.name}`, getColorNode(color.l, color.c, hue));
+      }
+    }
+  }
+
+  let colors;
+  fetch("/colors.json")
+    .then((res) => {
+      return res.json();
+    })
+    .then((data) => {
+      colors = data;
+      let storedHue = localStorage.getItem('hue');
+      if (storedHue) {
+        setHue(storedHue);
+      }    
+    }) 
+
+  slider.oninput = function() {
+    output.innerHTML = this.value;
+    let hue = this.value;
+    setHue(hue);
+  }
+
+  presetList.onclick = function(event) {
+    let hue = event.target.dataset.hue;
+    if (hue) {
+      setHue(hue);
+    }
+  }
+
+  // Banner switch
+
+  function enableBanner() {
+    r.setAttribute("showBanner", "true");
+    localStorage.setItem('showBanner', "true");
+  }
+  
+  function disableBanner() {
+    r.setAttribute("showBanner", "false");
+    localStorage.setItem('showBanner', "false");
+  }
+
+  let showBannerCheck = document.querySelector("input[name=banner-checkbox]");
+  if (r.getAttribute("showBanner") == "true") {
+    showBannerCheck.checked = true;
+  }
+  showBannerCheck.addEventListener('change', function() {
+    if (this.checked) {
+      enableBanner();
+    } else {
+      disableBanner();
+    }
+  });
+</script>
+  
+  
+  
+    
+<div id="banner" class="">
+  <img src="/assets/banner.jpg" itemprop="image">
+  <div id="banner-dim"></div>
+</div>
+ 
+   
+  <div id="main-grid" class="shadow   ">
+    <div id="nav" class=""  >
+      <navbar id="navbar">
+  <nav id="title-nav">
+    <a href="/">
+      <div id="xplus-logo">
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+        <div class="dot"></div>
+      </div>
+      <div>小黑屋 </div>
+    </a>
+  </nav>
+  <nav id="main-nav">
+    
+      <a class="main-nav-link" href="/">主页</a>
+    
+      <a class="main-nav-link" href="/archives">归档</a>
+    
+      <a class="main-nav-link" href="/about">关于</a>
+    
+  </nav>
+  <nav id="sub-nav">
+    <a id="theme-btn" class="nav-icon">
+      <span class="material-symbols-rounded light-mode-icon">wb_sunny</span>
+      <span class="material-symbols-rounded dark-mode-icon">dark_mode</span>
+    </a>
+    
+      <a id="nav-rss-link" class="nav-icon mobile-hide" href="/atom.xml" title="RSS 订阅">
+        <span class="material-symbols-rounded rss">rss_feed</span>
+      </a>
+    
+    <a id="nav-search-btn" class="nav-icon" title="搜索" style="display: none;">
+      <span class="material-symbols-rounded">search</span>
+    </a>
+    <div id="nav-menu-btn" class="nav-icon">
+      <span class="material-symbols-rounded">menu</span>
+    </div>
+  </nav>
+</navbar>
+<div id="nav-dropdown" class="hidden">
+  <div id="dropdown-link-list">
+    
+      <a class="nav-dropdown-link" href="/">主页</a>
+    
+      <a class="nav-dropdown-link" href="/archives">归档</a>
+    
+      <a class="nav-dropdown-link" href="/about">关于</a>
+    
+    
+      <a class="nav-dropdown-link" href="/atom.xml" title="RSS 订阅">RSS</a>
+     
+    </div>
+</div>
+<script>
+  let dropdownBtn = document.getElementById("nav-menu-btn");
+  let dropdownEle = document.getElementById("nav-dropdown");
+  dropdownBtn.onclick = function() {
+    dropdownEle.classList.toggle("hidden");
+  }
+</script>
+    </div>
+    <div id="sidebar-wrapper">
+      <sidebar id="sidebar">
+  
+    <div class="widget-wrap">
+  <div class="info-card">
+    <div class="avatar">
+      
+        <image src=/assets/avatar.png></image>
+      
+      <div class="img-dim"></div>
+    </div>
+    <div class="info">
+      <div class="username">小小黑 </div>
+      <div class="dot"></div>
+      <div class="subtitle">这人很懒，什么也没留下 </div>
+      <div class="link-list">
+        
+          <a class="link-btn" target="_blank" rel="noopener" href="https://twitter.com" title="Twitter"><i class="fa-brands fa-twitter"></i></a>
+        
+          <a class="link-btn" target="_blank" rel="noopener" href="https://store.steampowered.com" title="Steam"><i class="fa-brands fa-steam"></i></a>
+        
+          <a class="link-btn" target="_blank" rel="noopener" href="https://github.com/wulongtao" title="GitHub"><i class="fa-brands fa-github"></i></a>
+         
+      </div>  
+    </div>
+  </div>
+</div>
+
+  
+  <div class="sticky">
+    
+      
+
+
+  <div class="widget-wrap">
+    <div class="widget">
+      <h3 class="widget-title">分类</h3>
+      <div class="category-box">
+            <a class="category-link" href="/categories/AI/">
+                AI
+                <div class="category-count">2</div>
+            </a>
+        </div>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget-wrap">
+    <div class="widget">
+      <h3 class="widget-title">标签</h3>
+      <ul class="widget-tag-list" itemprop="keywords"><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/AI/" rel="tag">AI</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/Hexo/" rel="tag">Hexo</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/LLM/" rel="tag">LLM</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/Linux/" rel="tag">Linux</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/MySql/" rel="tag">MySql</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/Nacos/" rel="tag">Nacos</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/Python/" rel="tag">Python</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/Spring/" rel="tag">Spring</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/SpringCloud/" rel="tag">SpringCloud</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/%E4%B8%AD%E9%97%B4%E4%BB%B6/" rel="tag">中间件</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/%E5%88%86%E5%B8%83%E5%BC%8F/" rel="tag">分布式</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7/" rel="tag">实用工具</a></li><li class="widget-tag-list-item"><a class="widget-tag-list-link" href="/tags/%E9%9B%AA%E8%8A%B1%E7%AE%97%E6%B3%95/" rel="tag">雪花算法</a></li></ul>
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget-wrap">
+    <div class="widget">
+      <h3 class="widget-title">归档</h3>
+      
+      
+        <a class="archive-link" href="/archives/2026/02 ">
+          二月 2026 
+          <div class="archive-count">2 </div>
+        </a>
+      
+        <a class="archive-link" href="/archives/2023/08 ">
+          八月 2023 
+          <div class="archive-count">2 </div>
+        </a>
+      
+        <a class="archive-link" href="/archives/2023/07 ">
+          七月 2023 
+          <div class="archive-count">11 </div>
+        </a>
+      
+    </div>
+  </div>
+
+
+    
+      
+  <div class="widget-wrap">
+    <div class="widget">
+      <h3 class="widget-title">最新文章</h3>
+      <ul>
+        
+          <li>
+            <a href="/articles/AI/Ollama%E9%83%A8%E7%BD%B2%E6%9C%AC%E5%9C%B0LLM/">Ollama部署本地LLM</a>
+          </li>
+        
+          <li>
+            <a href="/articles/AI/%E4%BD%BF%E7%94%A8uv%E7%AE%A1%E7%90%86python%E4%BE%9D%E8%B5%96%E5%8C%85/">使用uv管理Python依赖包</a>
+          </li>
+        
+          <li>
+            <a href="/articles/%E4%B8%AD%E9%97%B4%E4%BB%B6/Kafka3-4-1%E9%9B%86%E7%BE%A4%E7%8E%AF%E5%A2%83%E6%90%AD%E5%BB%BA/">Kafka3.4.1集群环境搭建</a>
+          </li>
+        
+          <li>
+            <a href="/articles/MySql/mysql%E5%88%86%E7%BB%84%E5%B0%86%E8%BF%9E%E7%BB%AD%E7%9A%84%E6%97%B6%E9%97%B4%E6%AE%B5%E5%90%88%E5%B9%B6%E6%88%90%E4%B8%80%E6%9D%A1%E6%95%B0%E6%8D%AE/">mysql分组将连续的时间段合并成一条数据</a>
+          </li>
+        
+          <li>
+            <a href="/articles/%E5%B0%8F%E7%9F%A5%E8%AF%86/%E5%AE%9E%E7%94%A8%E5%B7%A5%E5%85%B7%E5%92%8C%E7%BD%91%E7%AB%99/">实用工具和网站</a>
+          </li>
+        
+      </ul>
+    </div>
+  </div>
+
+    
+  </div>
+</sidebar>
+    </div>
+    <div id="content-body">
+       
+
+<article id="post-Nacos源码阅读与实战" class="h-entry article article-type-post" itemprop="blogPost" itemscope itemtype="https://schema.org/BlogPosting">
+  
+    
+<div class="article-gallery">
+  <div class="article-gallery-photos">
+    
+      <a class="article-gallery-img" rel="gallery_cmluznyng000nmx3ze0udaxrz">
+        <img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/cover.png" itemprop="image">
+      </a>
+    
+  </div>
+</div>
+
+   
+  <div class="article-inner">
+    <div class="article-main">
+      <header class="article-header">
+        
+<div class="main-title-bar">
+  <div class="main-title-dot"></div>
+  
+    
+      <h1 class="p-name article-title" itemprop="headline name">
+        Nacos源码阅读与实战
+      </h1>
+    
+  
+</div>
+
+        <div class='meta-info-bar'>
+          <div class="meta-info">
+  <time class="dt-published" datetime="2023-07-18T22:23:59.000Z" itemprop="datePublished">2023-07-18</time>
+</div>
+          <div class="need-seperator meta-info">
+            <div class="meta-cate-flex">
+  
+  <a class="meta-cate-link" href="/categories/SpringCloud/">SpringCloud</a>
+   
+</div>
+  
+          </div>
+          <div class="wordcount need-seperator meta-info">
+            1.7k 词 
+          </div>
+        </div>
+        
+  <ul class="article-tag-list" itemprop="keywords"><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/Nacos/" rel="tag">Nacos</a></li><li class="article-tag-list-item"><a class="article-tag-list-link" href="/tags/SpringCloud/" rel="tag">SpringCloud</a></li></ul>
+
+      </header>
+      <div class="e-content article-entry" itemprop="articleBody">
+        
+          
+    <div id="toc">
+        <ol class="toc"><li class="toc-item toc-level-1"><a class="toc-link" href="#%E5%AE%A2%E6%88%B7%E7%AB%AF%E6%B3%A8%E5%86%8C%E6%BA%90%E7%A0%81%E8%A7%A3%E8%AF%BB"><span class="toc-text">客户端注册源码解读</span></a></li><li class="toc-item toc-level-1"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB"><span class="toc-text">服务端源码阅读</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%A4%84%E7%90%86%E5%AE%A2%E6%88%B7%E7%AB%AF%E9%93%BE%E6%8E%A5%E8%AF%B7%E6%B1%82"><span class="toc-text">服务端处理客户端链接请求</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9C%8D%E5%8A%A1%E7%AB%AF%E5%A4%84%E7%90%86Distro%E8%AF%B7%E6%B1%82"><span class="toc-text">服务端处理Distro请求</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E4%B8%AD%E5%BF%83%E5%8A%A0%E8%BD%BD%E6%BA%90%E7%A0%81"><span class="toc-text">配置中心加载源码</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E9%85%8D%E7%BD%AE%E6%96%87%E4%BB%B6%E5%8A%A0%E8%BD%BD%E9%A1%BA%E5%BA%8F%E6%BA%90%E7%A0%81"><span class="toc-text">配置文件加载顺序源码</span></a></li></ol></li><li class="toc-item toc-level-1"><a class="toc-link" href="#Nacos%E9%83%A8%E7%BD%B2%E9%81%87%E5%88%B0%E7%9A%84%E4%B8%80%E4%BA%9B%E9%97%AE%E9%A2%98"><span class="toc-text">Nacos部署遇到的一些问题</span></a><ol class="toc-child"><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%95%B0%E6%8D%AE%E5%BA%93%E9%93%BE%E6%8E%A5%E4%B8%8D%E4%B8%8A%E7%9A%84%E9%97%AE%E9%A2%98%EF%BC%88No-Database-Set%EF%BC%89"><span class="toc-text">数据库链接不上的问题（No Database Set）</span></a></li><li class="toc-item toc-level-2"><a class="toc-link" href="#%E6%9C%AC%E5%9C%B0Nacos%E6%BA%90%E7%A0%81%E5%90%AF%E5%8A%A8%E6%8A%A5%E9%94%99"><span class="toc-text">本地Nacos源码启动报错</span></a></li></ol></li></ol>
+    </div>
+
+          <p>本文主要内容是对于部分源码的理解还有在使用Nacos时遇到的一些问题汇总。<span id="more"></span></p>
+<p>对于阅读源码，我的思路是先找到一些注册成功的日志，然后打断点，看整个调用链路。</p>
+<h1 id="客户端注册源码解读"><a href="#客户端注册源码解读" class="headerlink" title="客户端注册源码解读"></a>客户端注册源码解读</h1><p>在NacosServiceRegistry类的注册完成日志的代码打个断点，我们可以看到项目启动后的整个调用链路。</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image1.png" alt="image1.png"></p>
+<p>从头开始看，首先还是进到熟悉的refresh方法，在finishRefresh中做处理。</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image2.png" alt="image2.png"></p>
+<p>实际上创建完实例后，使用了spring的发布事件机制，会发布一个注册事件。</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image3.png" alt="image3.png"></p>
+<p>发布完事件后，实际上是给springcloud包（非alibaba）的AbstractAutoServiceRegistration类监听到了这个事件，然后NacosServiceRegistry又实现了ServiceRegistry，所以由Nacos接收到这个事件并注册。</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image4.png" alt="image4.png"></p>
+<p>这里可以看到，真正注册的逻辑在下面这个方法中。</p>
+<pre class="line-numbers language-none"><code class="language-none">com.alibaba.nacos.client.naming.NacosNamingService#registerInstance(java.lang.String, java.lang.String, com.alibaba.nacos.api.naming.pojo.Instance)<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
+
+<p>打断点进去会看到正真处理的类是NamingClientProxyDelegate，里面会先调用getExecuteClientProxy方法去选择执行注册的代理，这里比较有意思：</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image5.png" alt="image5.png"></p>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token keyword">private</span> <span class="token class-name">NamingClientProxy</span> <span class="token function">getExecuteClientProxy</span><span class="token punctuation">(</span><span class="token class-name">Instance</span> instance<span class="token punctuation">)</span> <span class="token punctuation">&#123;</span>
+    <span class="token keyword">return</span> instance<span class="token punctuation">.</span><span class="token function">isEphemeral</span><span class="token punctuation">(</span><span class="token punctuation">)</span> <span class="token operator">?</span> grpcClientProxy <span class="token operator">:</span> httpClientProxy<span class="token punctuation">;</span>
+<span class="token punctuation">&#125;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
+
+<blockquote>
+<p>这里会判断如果是临时实例，用的是GRPC；持久化实例用的是httpClient。我觉得这里原因是因为临时实例的数据同步和健康检查是由客户端发送心跳的，这里使用长连接可以节省频繁发送心跳建立链接消耗性能的问题，并且客户端连接用的是nacos提供的包所以肯定支持GRPC协议。<br>但是持久化实例不一样，他主要是使用服务端探测的健康检查方式，因为客户端不会上报心跳，所以他并不知道客户端是否支持GRPC（例如mysql就不支持），所以他只能用httpClient的方式。</p>
+</blockquote>
+<p>因为我调试时用的是临时实例，所以进到了NamingGrpcClientProxy中：</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image6.png" alt="image6.png"></p>
+<p>NamingGrpcClientProxy最终封装一个Request去注册服务实例</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image7.png" alt="image7.png"></p>
+<h1 id="服务端源码阅读"><a href="#服务端源码阅读" class="headerlink" title="服务端源码阅读"></a>服务端源码阅读</h1><h2 id="服务端处理客户端链接请求"><a href="#服务端处理客户端链接请求" class="headerlink" title="服务端处理客户端链接请求"></a>服务端处理客户端链接请求</h2><p>这里Nacos的设计思想和客户端有点像，也是通过发布订阅事件来完成的，在客户端与服务器建立连接后，客户端发送过来的请求会经过GrpcRequestAcceptor这个类的request方法。启动一个客户端时，会进入到下面这个断点（这里调试是要给断点加一个条件，否则会一直触发断点）。</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image10.png" alt="image10.png"></p>
+<p>然后我们关注下面这行代码</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image11.png" alt="image11.png"></p>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">Response</span> response <span class="token operator">=</span> requestHandler<span class="token punctuation">.</span><span class="token function">handleRequest</span><span class="token punctuation">(</span>request<span class="token punctuation">,</span> requestMeta<span class="token punctuation">)</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
+
+<p>这个代码最终会进到InstanceRequestHandler类的handle方法中，并且type是注册实例</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image12.png" alt="image12.png"></p>
+<p>注册实例的方法registerInstance进去，发现就是发布了很多个事件</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image13.png" alt="image13.png"></p>
+<p>最终在EphemeralClientOperationServiceImpl的下面代码块中，会把这个实例注册到ConcurrentHashMap里面去</p>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name">InstancePublishInfo</span> instanceInfo <span class="token operator">=</span> <span class="token function">getPublishInfo</span><span class="token punctuation">(</span>instance<span class="token punctuation">)</span><span class="token punctuation">;</span>
+client<span class="token punctuation">.</span><span class="token function">addServiceInstance</span><span class="token punctuation">(</span>singleton<span class="token punctuation">,</span> instanceInfo<span class="token punctuation">)</span><span class="token punctuation">;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span></span></code></pre>
+
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image14.png" alt="image14.png"></p>
+<p>整个事件发布和处理的模型图大致如下：</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image15.png" alt="image15.png"></p>
+<ol>
+<li>比如一个服务注册事件，调用NotifyCenter的静态方法开始发布一个事件，想要通过通知中心发布一个服务注册的消息</li>
+<li>该事件对应一些发布者，这时候会去map里面找这个事件的发布者</li>
+<li>这个事件发布者呢，他有一个阻塞队列queue，专门用来存储事件的</li>
+<li>同时这个发布者也是一个线程，作为一个发布者的同时，也是作为一个线程被保存在NotifyCenter的map里面</li>
+<li>发布者这个线程呢，会不断的从queue里面取事件</li>
+<li>发布者取出事件后，会从它内部的一个map里面找到这个事件的所有的订阅者，并判断这个订阅者是需要同步还是异步通知</li>
+</ol>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image16.png" alt="image16.png"></p>
+<h2 id="服务端处理Distro请求"><a href="#服务端处理Distro请求" class="headerlink" title="服务端处理Distro请求"></a>服务端处理Distro请求</h2><p>这里的事件处理器是DistroClientDataProcessor</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image17.png" alt="image17.png"></p>
+<p>最终也是放到延时队列做处理</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image18.png" alt="image18.png"></p>
+<h2 id="配置中心加载源码"><a href="#配置中心加载源码" class="headerlink" title="配置中心加载源码"></a>配置中心加载源码</h2><p>加载的入口在NacosConfigDataLoader类的pullConfig方法中，具体流程是通过grpc去链接，最后监听配置的改变</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image19.png" alt="image19.png"></p>
+<h2 id="配置文件加载顺序源码"><a href="#配置文件加载顺序源码" class="headerlink" title="配置文件加载顺序源码"></a>配置文件加载顺序源码</h2><p>在这个类中的NacosPropertySourceLocator如下方法，从这段代码基本可以分析共享配置优先级&lt;扩展配置&lt;内部规则配置</p>
+<pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token keyword">public</span> <span class="token class-name">PropertySource</span><span class="token generics"><span class="token punctuation">&lt;</span><span class="token operator">?</span><span class="token punctuation">></span></span> <span class="token function">locate</span><span class="token punctuation">(</span><span class="token class-name">Environment</span> env<span class="token punctuation">)</span> <span class="token punctuation">&#123;</span>
+    nacosConfigProperties<span class="token punctuation">.</span><span class="token function">setEnvironment</span><span class="token punctuation">(</span>env<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token class-name">ConfigService</span> configService <span class="token operator">=</span> nacosConfigManager<span class="token punctuation">.</span><span class="token function">getConfigService</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token keyword">null</span> <span class="token operator">==</span> configService<span class="token punctuation">)</span> <span class="token punctuation">&#123;</span>
+        log<span class="token punctuation">.</span><span class="token function">warn</span><span class="token punctuation">(</span><span class="token string">"no instance of config service found, can't load config from nacos"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        <span class="token keyword">return</span> <span class="token keyword">null</span><span class="token punctuation">;</span>
+    <span class="token punctuation">&#125;</span>
+    <span class="token keyword">long</span> timeout <span class="token operator">=</span> nacosConfigProperties<span class="token punctuation">.</span><span class="token function">getTimeout</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    nacosPropertySourceBuilder <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">NacosPropertySourceBuilder</span><span class="token punctuation">(</span>configService<span class="token punctuation">,</span>
+            timeout<span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token class-name">String</span> name <span class="token operator">=</span> nacosConfigProperties<span class="token punctuation">.</span><span class="token function">getName</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+
+    <span class="token class-name">String</span> dataIdPrefix <span class="token operator">=</span> nacosConfigProperties<span class="token punctuation">.</span><span class="token function">getPrefix</span><span class="token punctuation">(</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token class-name">StringUtils</span><span class="token punctuation">.</span><span class="token function">isEmpty</span><span class="token punctuation">(</span>dataIdPrefix<span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token punctuation">&#123;</span>
+        dataIdPrefix <span class="token operator">=</span> name<span class="token punctuation">;</span>
+    <span class="token punctuation">&#125;</span>
+
+    <span class="token keyword">if</span> <span class="token punctuation">(</span><span class="token class-name">StringUtils</span><span class="token punctuation">.</span><span class="token function">isEmpty</span><span class="token punctuation">(</span>dataIdPrefix<span class="token punctuation">)</span><span class="token punctuation">)</span> <span class="token punctuation">&#123;</span>
+        dataIdPrefix <span class="token operator">=</span> env<span class="token punctuation">.</span><span class="token function">getProperty</span><span class="token punctuation">(</span><span class="token string">"spring.application.name"</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+    <span class="token punctuation">&#125;</span>
+
+    <span class="token class-name">CompositePropertySource</span> composite <span class="token operator">=</span> <span class="token keyword">new</span> <span class="token class-name">CompositePropertySource</span><span class="token punctuation">(</span>
+            <span class="token constant">NACOS_PROPERTY_SOURCE_NAME</span><span class="token punctuation">)</span><span class="token punctuation">;</span>
+        
+    <span class="token function">loadSharedConfiguration</span><span class="token punctuation">(</span>composite<span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// 加载共享配置</span>
+    <span class="token function">loadExtConfiguration</span><span class="token punctuation">(</span>composite<span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// 加载扩展配置</span>
+    <span class="token function">loadApplicationConfiguration</span><span class="token punctuation">(</span>composite<span class="token punctuation">,</span> dataIdPrefix<span class="token punctuation">,</span> nacosConfigProperties<span class="token punctuation">,</span> env<span class="token punctuation">)</span><span class="token punctuation">;</span> <span class="token comment">// 加载内部规则配置</span>
+    <span class="token keyword">return</span> composite<span class="token punctuation">;</span>
+<span class="token punctuation">&#125;</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+
+
+<h1 id="Nacos部署遇到的一些问题"><a href="#Nacos部署遇到的一些问题" class="headerlink" title="Nacos部署遇到的一些问题"></a>Nacos部署遇到的一些问题</h1><h2 id="数据库链接不上的问题（No-Database-Set）"><a href="#数据库链接不上的问题（No-Database-Set）" class="headerlink" title="数据库链接不上的问题（No Database Set）"></a>数据库链接不上的问题（No Database Set）</h2><p>可以试试在配置文件中把下面的配置注释掉</p>
+<pre class="line-numbers language-none"><code class="language-none"># spring.datasource.platform&#x3D;mysql<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
+<p>然后数据库连接配置改成这样，主要加了allowPublicKeyRetrieval和换一下时区：</p>
+<pre class="line-numbers language-none"><code class="language-none">jdbc:mysql:&#x2F;&#x2F;127.0.0.1:3306&#x2F;nacos_config?characterEncoding&#x3D;utf8&amp;connectTimeout&#x3D;1000&amp;socketTimeout&#x3D;3000&amp;autoReconnect&#x3D;true&amp;useUnicode&#x3D;true&amp;useSSL&#x3D;false&amp;serverTimezone&#x3D;Asia&#x2F;Shanghai&amp;allowPublicKeyRetrieval&#x3D;true<span aria-hidden="true" class="line-numbers-rows"><span></span></span></code></pre>
+
+<h2 id="本地Nacos源码启动报错"><a href="#本地Nacos源码启动报错" class="headerlink" title="本地Nacos源码启动报错"></a>本地Nacos源码启动报错</h2><pre class="line-numbers language-java" data-language="java"><code class="language-java"><span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span></span>BeanCreationException</span><span class="token operator">:</span> <span class="token class-name">Error</span> creating bean <span class="token keyword">with</span> <span class="token namespace">name</span> 'grpcClusterServer'<span class="token operator">:</span> <span class="token class-name">Invocation</span> of init method failed<span class="token punctuation">;</span> nested exception is <span class="token class-name"><span class="token namespace">java<span class="token punctuation">.</span>io<span class="token punctuation">.</span></span>IOException</span><span class="token operator">:</span> <span class="token class-name">Failed</span> <span class="token keyword">to</span> <span class="token namespace">bind</span> <span class="token keyword">to</span> <span class="token namespace">address</span> <span class="token number">0.0</span><span class="token number">.0</span><span class="token number">.0</span><span class="token operator">/</span><span class="token number">0.0</span><span class="token number">.0</span><span class="token number">.0</span><span class="token operator">:</span><span class="token number">9849</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>annotation<span class="token punctuation">.</span></span>InitDestroyAnnotationBeanPostProcessor</span><span class="token punctuation">.</span><span class="token function">postProcessBeforeInitialization</span><span class="token punctuation">(</span><span class="token class-name">InitDestroyAnnotationBeanPostProcessor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">160</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span><span class="token function">applyBeanPostProcessorsBeforeInitialization</span><span class="token punctuation">(</span><span class="token class-name">AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">440</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span><span class="token function">initializeBean</span><span class="token punctuation">(</span><span class="token class-name">AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">1796</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span><span class="token function">doCreateBean</span><span class="token punctuation">(</span><span class="token class-name">AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">620</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span><span class="token function">createBean</span><span class="token punctuation">(</span><span class="token class-name">AbstractAutowireCapableBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">542</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractBeanFactory</span><span class="token punctuation">.</span>lambda$doGetBean$<span class="token function">0</span><span class="token punctuation">(</span><span class="token class-name">AbstractBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">335</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>DefaultSingletonBeanRegistry</span><span class="token punctuation">.</span><span class="token function">getSingleton</span><span class="token punctuation">(</span><span class="token class-name">DefaultSingletonBeanRegistry</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">234</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractBeanFactory</span><span class="token punctuation">.</span><span class="token function">doGetBean</span><span class="token punctuation">(</span><span class="token class-name">AbstractBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">333</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractBeanFactory</span><span class="token punctuation">.</span><span class="token function">getBean</span><span class="token punctuation">(</span><span class="token class-name">AbstractBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">208</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>DefaultListableBeanFactory</span><span class="token punctuation">.</span><span class="token function">preInstantiateSingletons</span><span class="token punctuation">(</span><span class="token class-name">DefaultListableBeanFactory</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">955</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>context<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractApplicationContext</span><span class="token punctuation">.</span><span class="token function">finishBeanFactoryInitialization</span><span class="token punctuation">(</span><span class="token class-name">AbstractApplicationContext</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">918</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>context<span class="token punctuation">.</span>support<span class="token punctuation">.</span></span>AbstractApplicationContext</span><span class="token punctuation">.</span><span class="token function">refresh</span><span class="token punctuation">(</span><span class="token class-name">AbstractApplicationContext</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">583</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>boot<span class="token punctuation">.</span>web<span class="token punctuation">.</span>servlet<span class="token punctuation">.</span>context<span class="token punctuation">.</span></span>ServletWebServerApplicationContext</span><span class="token punctuation">.</span><span class="token function">refresh</span><span class="token punctuation">(</span><span class="token class-name">ServletWebServerApplicationContext</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">145</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>boot<span class="token punctuation">.</span></span>SpringApplication</span><span class="token punctuation">.</span><span class="token function">refresh</span><span class="token punctuation">(</span><span class="token class-name">SpringApplication</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">745</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>boot<span class="token punctuation">.</span></span>SpringApplication</span><span class="token punctuation">.</span><span class="token function">refreshContext</span><span class="token punctuation">(</span><span class="token class-name">SpringApplication</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">423</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>boot<span class="token punctuation">.</span></span>SpringApplication</span><span class="token punctuation">.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">SpringApplication</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">307</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>boot<span class="token punctuation">.</span></span>SpringApplication</span><span class="token punctuation">.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">SpringApplication</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">1317</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>boot<span class="token punctuation">.</span></span>SpringApplication</span><span class="token punctuation">.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">SpringApplication</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">1306</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">com<span class="token punctuation">.</span>alibaba<span class="token punctuation">.</span>nacos<span class="token punctuation">.</span></span>Nacos</span><span class="token punctuation">.</span><span class="token function">main</span><span class="token punctuation">(</span><span class="token class-name">Nacos</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">35</span><span class="token punctuation">)</span>
+<span class="token class-name">Caused</span> by<span class="token operator">:</span> <span class="token class-name"><span class="token namespace">java<span class="token punctuation">.</span>io<span class="token punctuation">.</span></span>IOException</span><span class="token operator">:</span> <span class="token class-name">Failed</span> <span class="token keyword">to</span> <span class="token namespace">bind</span> <span class="token keyword">to</span> <span class="token namespace">address</span> <span class="token number">0.0</span><span class="token number">.0</span><span class="token number">.0</span><span class="token operator">/</span><span class="token number">0.0</span><span class="token number">.0</span><span class="token number">.0</span><span class="token operator">:</span><span class="token number">9849</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span></span>NettyServer</span><span class="token punctuation">.</span><span class="token function">start</span><span class="token punctuation">(</span><span class="token class-name">NettyServer</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">328</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>internal<span class="token punctuation">.</span></span>ServerImpl</span><span class="token punctuation">.</span><span class="token function">start</span><span class="token punctuation">(</span><span class="token class-name">ServerImpl</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">184</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>internal<span class="token punctuation">.</span></span>ServerImpl</span><span class="token punctuation">.</span><span class="token function">start</span><span class="token punctuation">(</span><span class="token class-name">ServerImpl</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">93</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">com<span class="token punctuation">.</span>alibaba<span class="token punctuation">.</span>nacos<span class="token punctuation">.</span>core<span class="token punctuation">.</span>remote<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span></span>BaseGrpcServer</span><span class="token punctuation">.</span><span class="token function">startServer</span><span class="token punctuation">(</span><span class="token class-name">BaseGrpcServer</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">106</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">com<span class="token punctuation">.</span>alibaba<span class="token punctuation">.</span>nacos<span class="token punctuation">.</span>core<span class="token punctuation">.</span>remote<span class="token punctuation">.</span></span>BaseRpcServer</span><span class="token punctuation">.</span><span class="token function">start</span><span class="token punctuation">(</span><span class="token class-name">BaseRpcServer</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">59</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">jdk<span class="token punctuation">.</span>internal<span class="token punctuation">.</span>reflect<span class="token punctuation">.</span></span>NativeMethodAccessorImpl</span><span class="token punctuation">.</span><span class="token function">invoke0</span><span class="token punctuation">(</span><span class="token class-name">Native</span> <span class="token class-name">Method</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">jdk<span class="token punctuation">.</span>internal<span class="token punctuation">.</span>reflect<span class="token punctuation">.</span></span>NativeMethodAccessorImpl</span><span class="token punctuation">.</span><span class="token function">invoke</span><span class="token punctuation">(</span><span class="token class-name">NativeMethodAccessorImpl</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">77</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">jdk<span class="token punctuation">.</span>internal<span class="token punctuation">.</span>reflect<span class="token punctuation">.</span></span>DelegatingMethodAccessorImpl</span><span class="token punctuation">.</span><span class="token function">invoke</span><span class="token punctuation">(</span><span class="token class-name">DelegatingMethodAccessorImpl</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">43</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">java<span class="token punctuation">.</span>lang<span class="token punctuation">.</span>reflect<span class="token punctuation">.</span></span>Method</span><span class="token punctuation">.</span><span class="token function">invoke</span><span class="token punctuation">(</span><span class="token class-name">Method</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">568</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>annotation<span class="token punctuation">.</span></span>InitDestroyAnnotationBeanPostProcessor</span>$<span class="token class-name">LifecycleElement</span><span class="token punctuation">.</span><span class="token function">invoke</span><span class="token punctuation">(</span><span class="token class-name">InitDestroyAnnotationBeanPostProcessor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">389</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>annotation<span class="token punctuation">.</span></span>InitDestroyAnnotationBeanPostProcessor</span>$<span class="token class-name">LifecycleMetadata</span><span class="token punctuation">.</span><span class="token function">invokeInitMethods</span><span class="token punctuation">(</span><span class="token class-name">InitDestroyAnnotationBeanPostProcessor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">333</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">org<span class="token punctuation">.</span>springframework<span class="token punctuation">.</span>beans<span class="token punctuation">.</span>factory<span class="token punctuation">.</span>annotation<span class="token punctuation">.</span></span>InitDestroyAnnotationBeanPostProcessor</span><span class="token punctuation">.</span><span class="token function">postProcessBeforeInitialization</span><span class="token punctuation">(</span><span class="token class-name">InitDestroyAnnotationBeanPostProcessor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">157</span><span class="token punctuation">)</span>
+	<span class="token punctuation">.</span><span class="token punctuation">.</span><span class="token punctuation">.</span> <span class="token number">18</span> common frames omitted
+<span class="token class-name">Caused</span> by<span class="token operator">:</span> <span class="token class-name"><span class="token namespace">java<span class="token punctuation">.</span>net<span class="token punctuation">.</span></span>BindException</span><span class="token operator">:</span> <span class="token class-name">Address</span> already in use<span class="token operator">:</span> bind
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">sun<span class="token punctuation">.</span>nio<span class="token punctuation">.</span>ch<span class="token punctuation">.</span></span>Net</span><span class="token punctuation">.</span><span class="token function">bind0</span><span class="token punctuation">(</span><span class="token class-name">Native</span> <span class="token class-name">Method</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">sun<span class="token punctuation">.</span>nio<span class="token punctuation">.</span>ch<span class="token punctuation">.</span></span>Net</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">Net</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">555</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">sun<span class="token punctuation">.</span>nio<span class="token punctuation">.</span>ch<span class="token punctuation">.</span></span>ServerSocketChannelImpl</span><span class="token punctuation">.</span><span class="token function">netBind</span><span class="token punctuation">(</span><span class="token class-name">ServerSocketChannelImpl</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">337</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">sun<span class="token punctuation">.</span>nio<span class="token punctuation">.</span>ch<span class="token punctuation">.</span></span>ServerSocketChannelImpl</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">ServerSocketChannelImpl</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">294</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span>socket<span class="token punctuation">.</span>nio<span class="token punctuation">.</span></span>NioServerSocketChannel</span><span class="token punctuation">.</span><span class="token function">doBind</span><span class="token punctuation">(</span><span class="token class-name">NioServerSocketChannel</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">141</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span></span>AbstractChannel</span>$<span class="token class-name">AbstractUnsafe</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">AbstractChannel</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">562</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span></span>DefaultChannelPipeline</span>$<span class="token class-name">HeadContext</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">DefaultChannelPipeline</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">1334</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span></span>AbstractChannelHandlerContext</span><span class="token punctuation">.</span><span class="token function">invokeBind</span><span class="token punctuation">(</span><span class="token class-name">AbstractChannelHandlerContext</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">506</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span></span>AbstractChannelHandlerContext</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">AbstractChannelHandlerContext</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">491</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span></span>DefaultChannelPipeline</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">DefaultChannelPipeline</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">973</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span></span>AbstractChannel</span><span class="token punctuation">.</span><span class="token function">bind</span><span class="token punctuation">(</span><span class="token class-name">AbstractChannel</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">260</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>bootstrap<span class="token punctuation">.</span></span>AbstractBootstrap</span>$<span class="token number">2.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">AbstractBootstrap</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">356</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>concurrent<span class="token punctuation">.</span></span>AbstractEventExecutor</span><span class="token punctuation">.</span>runTask$$$<span class="token function">capture</span><span class="token punctuation">(</span><span class="token class-name">AbstractEventExecutor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">174</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>concurrent<span class="token punctuation">.</span></span>AbstractEventExecutor</span><span class="token punctuation">.</span><span class="token function">runTask</span><span class="token punctuation">(</span><span class="token class-name">AbstractEventExecutor</span><span class="token punctuation">.</span>java<span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>concurrent<span class="token punctuation">.</span></span>AbstractEventExecutor</span><span class="token punctuation">.</span><span class="token function">safeExecute</span><span class="token punctuation">(</span><span class="token class-name">AbstractEventExecutor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">167</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>concurrent<span class="token punctuation">.</span></span>SingleThreadEventExecutor</span><span class="token punctuation">.</span><span class="token function">runAllTasks</span><span class="token punctuation">(</span><span class="token class-name">SingleThreadEventExecutor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">470</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>channel<span class="token punctuation">.</span>nio<span class="token punctuation">.</span></span>NioEventLoop</span><span class="token punctuation">.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">NioEventLoop</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">503</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>concurrent<span class="token punctuation">.</span></span>SingleThreadEventExecutor</span>$<span class="token number">4.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">SingleThreadEventExecutor</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">997</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>internal<span class="token punctuation">.</span></span>ThreadExecutorMap</span>$<span class="token number">2.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">ThreadExecutorMap</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">74</span><span class="token punctuation">)</span>
+	at <span class="token class-name"><span class="token namespace">io<span class="token punctuation">.</span>grpc<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>shaded<span class="token punctuation">.</span>io<span class="token punctuation">.</span>netty<span class="token punctuation">.</span>util<span class="token punctuation">.</span>concurrent<span class="token punctuation">.</span></span>FastThreadLocalRunnable</span><span class="token punctuation">.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">FastThreadLocalRunnable</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">30</span><span class="token punctuation">)</span>
+	at java<span class="token punctuation">.</span>base<span class="token operator">/</span><span class="token class-name"><span class="token namespace">java<span class="token punctuation">.</span>lang<span class="token punctuation">.</span></span>Thread</span><span class="token punctuation">.</span><span class="token function">run</span><span class="token punctuation">(</span><span class="token class-name">Thread</span><span class="token punctuation">.</span>java<span class="token operator">:</span><span class="token number">833</span><span class="token punctuation">)</span>
+<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span></code></pre>
+
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image8.png" alt="image8.png"></p>
+<p>这个原因是Nacos2.x版本启动时占用了2个端口，偏移量是1000和1001</p>
+<p><img src="/articles/SpringCloud/Nacos%E6%BA%90%E7%A0%81%E9%98%85%E8%AF%BB%E4%B8%8E%E5%AE%9E%E6%88%98/image9.png" alt="image9.png"></p>
+<p>例如我集群用了下面的配置：</p>
+<pre class="line-numbers language-yaml" data-language="yaml"><code class="language-yaml">192.168.1.106<span class="token punctuation">:</span><span class="token number">8847</span> <span class="token comment">#占用了9847 9848</span>
+192.168.1.106<span class="token punctuation">:</span><span class="token number">8848</span> <span class="token comment">#占用了9848 9849</span>
+192.168.1.106<span class="token punctuation">:</span><span class="token number">8849</span> <span class="token comment">#占用了9849 9850</span><span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
+
+<p>所以端口要分开配置像这样：</p>
+<pre class="line-numbers language-none"><code class="language-none">192.168.1.106:8844
+192.168.1.106:8846
+192.168.1.106:8848<span aria-hidden="true" class="line-numbers-rows"><span></span><span></span><span></span></span></code></pre>
+
+        
+      </div>
+
+         
+    </div>
+    
+     
+  </div>
+  
+    
+<nav id="article-nav">
+  <a class="article-nav-btn left "
+    
+      href="/articles/SpringCloud/%E8%BF%9C%E7%A8%8B%E8%B0%83%E7%94%A8%E6%9C%AC%E5%9C%B0%E6%8E%A5%E5%8F%A3%E6%96%B9%E6%A1%88/"
+      title="远程调用本地接口方案"
+     >
+    <i class="fa-solid fa-angle-left"></i>
+    <p class="title-text">
+      
+        远程调用本地接口方案
+        
+    </p>
+  </a>
+  <a class="article-nav-btn right "
+    
+      href="/articles/SpringCloud/Nacos%E5%AD%A6%E4%B9%A0%E7%AC%94%E8%AE%B0/"
+      title="Nacos学习笔记"
+     >
+
+    <p class="title-text">
+      
+        Nacos学习笔记
+        
+    </p>
+    <i class="fa-solid fa-angle-right"></i>
+  </a>
+</nav>
+
+
+  
+</article>
+
+ 
+    </div>
+    <div id="footer-wrapper">
+      <footer id="footer">
+  
+  <div id="footer-info" class="inner">
+    
+    &copy; 2026 小小黑<br>
+    Powered by <a href="https://hexo.io/" target="_blank">Hexo</a> & Theme <a target="_blank" rel="noopener" href="https://github.com/wulongtao/hexo-theme-xplus">xplus</a>
+  </div>
+</footer>
+
+    </div>
+    <div class="back-to-top-wrapper">
+    <button id="back-to-top-btn" class="back-to-top-btn" onclick="topFunction()">
+        <span class="material-symbols-rounded">keyboard_arrow_up</span>
+    </button>
+</div>
+
+<script>
+    function topFunction() {
+        window.scroll({ top: 0, behavior: 'smooth' });
+    }
+    let btn = document.getElementById('back-to-top-btn');
+    function scrollFunction() {
+        if (document.body.scrollTop > 600 || document.documentElement.scrollTop > 600) {
+            btn.style.opacity = 1;
+        } else {
+            btn.style.opacity = 0;
+        }
+    }
+    window.onscroll = function() {
+        scrollFunction();
+    }
+</script>
+
+  </div>
+  <script src="/js/light-dark-switch.js"></script>
+</body>
+</html>
